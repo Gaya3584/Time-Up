@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import { fetchSchedules } from "../services/scheduleService";
-
+import './CalendarView.css';
 const CalendarView = () => {
   const [events, setEvents] = useState([]);
   const [notifiedSchedules, setNotifiedSchedules] = useState(new Set());
@@ -62,8 +62,11 @@ const CalendarView = () => {
   }, []);
 
   return (
-    <div>
+  <div className="calendar-container">
+    <div className="calendar-header">
       <h2>Irrigation Calendar</h2>
+    </div>
+    <div className="calendar-wrapper">
       <FullCalendar
         plugins={[dayGridPlugin]}
         initialView="dayGridMonth"
@@ -71,7 +74,9 @@ const CalendarView = () => {
         height="auto"
       />
     </div>
-  );
+  </div>
+);
+
 };
 
 export default CalendarView;
