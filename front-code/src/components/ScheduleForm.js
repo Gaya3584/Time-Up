@@ -1,7 +1,4 @@
 import React, { useState } from "react";
-import { createSchedule } from "../services/scheduleService";
-import { messaging } from "../firebase";
-import { getToken } from "firebase/messaging";
 import "./ScheduleForm.css";
 
 const ScheduleForm = () => {
@@ -12,48 +9,71 @@ const ScheduleForm = () => {
     irrigationNeeded: "",
     scheduledDate: "",
     phoneNumber: "",
+    duration: "",
+    autoSuggest: false,
   });
 
+  const [suggestedDates, setSuggestedDates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const token = localStorage.getItem("token");
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
+    if (!token) {
+      alert("Please login to schedule irrigation.");
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Save schedule to database
-      await createSchedule(formData);
-      alert("Schedule submitted successfully!");
-
-      // Ask for push notification permission
-      const permission = await Notification.requestPermission();
-
-      if (permission === "granted") {
-        const token = await getToken(messaging, {
-          vapidKey: "BBPPA0pP5eCiB6_9477vaPmFpzW7NSZ9Bj6F-Y2OL6jTxtT2v84B8aHATHBjHvY9TEQhilLzhE7FO4n4q_aBqLo" // 🔑 Replace with your key from Firebase
+      if (formData.autoSuggest) {
+        const response = await fetch("http://localhost:5000/api/schedules/auto", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
         });
 
-        if (token) {
-          console.log("✅ FCM Token:", token);
-
-          // Optional: send token to backend to associate with phone/user
-          // await fetch("http://localhost:5000/api/notifications/token", {
-          //   method: "POST",
-          //   headers: { "Content-Type": "application/json" },
-          //   body: JSON.stringify({ token, phoneNumber: formData.phoneNumber }),
-          // });
+        const result = await response.json();
+        if (result.success) {
+          setSuggestedDates(result.schedules);
         } else {
-          console.warn("⚠️ No token received");
+          alert("Auto-scheduling failed");
         }
       } else {
-        console.warn("🔕 Notifications denied");
-      }
+        const response = await fetch("http://localhost:5000/api/schedules", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        });
 
+        if (response.ok) {
+          alert("Schedule submitted successfully!");
+        } else {
+          alert("Error saving schedule");
+        }
+      }
     } catch (err) {
-      console.error("Error submitting:", err);
-      alert("Error submitting schedule.");
+      console.error(err);
+      alert("Submission error");
     }
+
+    setLoading(false);
   };
 
   return (
@@ -62,87 +82,67 @@ const ScheduleForm = () => {
         <h2>Schedule Irrigation</h2>
         <p className="form-subtitle">Enter the crop details and irrigation time</p>
       </div>
+
       <form className="schedule-form" onSubmit={handleSubmit}>
         <div className="form-row">
           <div className="form-group floating-label">
-            <input
-              type="text"
-              name="cropType"
-              className="form-input"
-              placeholder=" "
-              value={formData.cropType}
-              onChange={handleChange}
-              required
-            />
+            <input type="text" name="cropType" className="form-input" placeholder=" " value={formData.cropType} onChange={handleChange} required />
             <label className="form-label">Crop Type</label>
           </div>
           <div className="form-group floating-label">
-            <input
-              type="text"
-              name="soilType"
-              className="form-input"
-              placeholder=" "
-              value={formData.soilType}
-              onChange={handleChange}
-              required
-            />
+            <input type="text" name="soilType" className="form-input" placeholder=" " value={formData.soilType} onChange={handleChange} required />
             <label className="form-label">Soil Type</label>
           </div>
         </div>
 
         <div className="form-group floating-label">
-          <input
-            type="text"
-            name="location"
-            className="form-input"
-            placeholder=" "
-            value={formData.location}
-            onChange={handleChange}
-            required
-          />
+          <input type="text" name="location" className="form-input" placeholder=" " value={formData.location} onChange={handleChange} required />
           <label className="form-label">Location</label>
         </div>
 
         <div className="form-group floating-label">
-          <input
-            type="text"
-            name="irrigationNeeded"
-            className="form-input"
-            placeholder=" "
-            value={formData.irrigationNeeded}
-            onChange={handleChange}
-            required
-          />
+          <input type="text" name="irrigationNeeded" className="form-input" placeholder=" " value={formData.irrigationNeeded} onChange={handleChange} required />
           <label className="form-label">Irrigation Advice</label>
         </div>
 
         <div className="form-group floating-label">
-          <input
-            type="datetime-local"
-            name="scheduledDate"
-            className="form-input"
-            value={formData.scheduledDate}
-            onChange={handleChange}
-            required
-          />
+          <input type="datetime-local" name="scheduledDate" className="form-input" value={formData.scheduledDate} onChange={handleChange} required={!formData.autoSuggest} disabled={formData.autoSuggest} />
           <label className="form-label">Scheduled Date</label>
         </div>
 
         <div className="form-group floating-label">
-          <input
-            type="tel"
-            name="phoneNumber"
-            className="form-input"
-            placeholder=" "
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            required
-          />
+          <input type="tel" name="phoneNumber" className="form-input" placeholder=" " value={formData.phoneNumber} onChange={handleChange} required />
           <label className="form-label">Phone Number</label>
         </div>
 
-        <button className="submit-button" type="submit">Submit</button>
+        <select name="duration" value={formData.duration} onChange={handleChange} required={formData.autoSuggest}>
+          <option value="">Select Duration</option>
+          <option value="week">1 Week</option>
+          <option value="month">1 Month</option>
+        </select>
+
+        <label className="checkbox-label">
+          <input type="checkbox" name="autoSuggest" checked={formData.autoSuggest} onChange={handleChange} />
+          Auto-Suggest Irrigation Dates
+        </label>
+
+        <button className="submit-button" type="submit" disabled={loading}>
+          {loading ? "Submitting..." : "Submit"}
+        </button>
       </form>
+
+      {formData.autoSuggest && suggestedDates.length > 0 && (
+        <div className="suggested-schedule-box">
+          <h3>✨ AI-Suggested Irrigation Dates:</h3>
+          <ul>
+            {suggestedDates.map((item, idx) => (
+              <li key={idx}>
+                {new Date(item.scheduledDate).toLocaleString()} — for {item.cropType}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

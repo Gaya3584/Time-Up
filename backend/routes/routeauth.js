@@ -2,8 +2,9 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto"); // ✅ Fix added
 const User = require("../models/User");
-require("dotenv").config(); // Make sure you can access env variables
+require("dotenv").config();
 
 console.log("User model loaded:", User);
 
@@ -44,21 +45,21 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid username or password" });
     }
 
-    // ✅ Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, username: user.username },
-      process.env.JWT_SECRET || "default_secret", // fallback for dev
-      { expiresIn: "1h" } // or use process.env.JWT_EXPIRES_IN
-    );
+    // ✅ If token doesn't exist, generate and save one
+    if (!user.token) {
+      user.token = crypto.randomBytes(32).toString("hex");
+      await user.save();
+    }
 
+    // Send back same token each time
     res.json({
       message: "Login successful",
-      token,
+      token: user.token,
       username: user.username,
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 module.exports = router;
