@@ -1,39 +1,40 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  fetchSchedules,
   deleteSchedule,
   updateSchedule,
 } from "../services/scheduleService";
 import "./ScheduleList.css";
 
-const ScheduleList = () => {
-  const [schedules, setSchedules] = useState([]);
+// Format ISO to 'YYYY-MM-DDTHH:MM' for <input type="datetime-local">
+const formatForInput = (isoString) => {
+  const date = new Date(isoString);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+// Format ISO to 'DD/MM/YYYY, HH:mm' for display
+const formatForDisplay = (isoString) => {
+  const date = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const ScheduleList = ({ schedules = [], refetchSchedules }) => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     cropType: "",
     scheduledDate: "",
+    soilType: "",
+    location: "",
+    irrigationNeeded: "",
+    phoneNumber: "",
   });
-
   const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const data = await fetchSchedules(token);
-      setSchedules(data);
-    } catch (err) {
-      console.error("Failed to load schedules:", err.message);
-      setSchedules([]);
-    }
-  };
 
   const handleDelete = async (id) => {
     try {
       await deleteSchedule(id, token);
-      loadData();
+      refetchSchedules();
     } catch (err) {
       console.error("Delete failed:", err.message);
     }
@@ -41,9 +42,14 @@ const ScheduleList = () => {
 
   const handleEdit = (item) => {
     setEditingId(item._id);
+
     setFormData({
-      cropType: item.cropType,
-      scheduledDate: item.scheduledDate.slice(0, 16), // format for datetime-local
+      cropType: item.cropType || "",
+      scheduledDate: formatForInput(item.scheduledDate),
+      soilType: item.soilType || "",
+      location: item.location || "",
+      irrigationNeeded: item.irrigationNeeded || "",
+      phoneNumber: item.phoneNumber || "",
     });
   };
 
@@ -53,12 +59,31 @@ const ScheduleList = () => {
 
   const handleUpdate = async () => {
     try {
-      await updateSchedule(editingId, formData, token);
+      await updateSchedule(
+        editingId,
+        {
+          ...formData,
+          scheduledDate: new Date(formData.scheduledDate).toISOString(),
+        },
+        token
+      );
       setEditingId(null);
-      loadData();
+      refetchSchedules();
     } catch (err) {
       console.error("Update failed:", err.message);
     }
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setFormData({
+      cropType: "",
+      scheduledDate: "",
+      soilType: "",
+      location: "",
+      irrigationNeeded: "",
+      phoneNumber: "",
+    });
   };
 
   return (
@@ -79,32 +104,91 @@ const ScheduleList = () => {
             <li key={item._id} className="schedule-item">
               {editingId === item._id ? (
                 <div className="edit-form">
-                  <input
-                    type="text"
-                    name="cropType"
-                    className="edit-input"
-                    value={formData.cropType}
-                    onChange={handleChange}
-                  />
-                  <input
-                    type="datetime-local"
-                    name="scheduledDate"
-                    className="edit-input"
-                    value={formData.scheduledDate}
-                    onChange={handleChange}
-                  />
+                  <div className="edit-form-grid">
+                    <div className="form-group">
+                      <label className="edit-label">Crop Type</label>
+                      <input
+                        type="text"
+                        name="cropType"
+                        className="edit-input"
+                        value={formData.cropType}
+                        onChange={handleChange}
+                        placeholder="Enter crop type"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="edit-label">Scheduled Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        name="scheduledDate"
+                        className="edit-input"
+                        value={formData.scheduledDate}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="edit-label">Soil Type</label>
+                      <input
+                        type="text"
+                        name="soilType"
+                        className="edit-input"
+                        value={formData.soilType}
+                        onChange={handleChange}
+                        placeholder="Enter soil type"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="edit-label">Location</label>
+                      <input
+                        type="text"
+                        name="location"
+                        className="edit-input"
+                        value={formData.location}
+                        onChange={handleChange}
+                        placeholder="Enter location"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="edit-label">Irrigation Advice</label>
+                      <input
+                        type="text"
+                        name="irrigationNeeded"
+                        className="edit-input"
+                        value={formData.irrigationNeeded}
+                        onChange={handleChange}
+                        placeholder="Enter irrigation advice"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="edit-label">Phone Number</label>
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        className="edit-input"
+                        value={formData.phoneNumber}
+                        onChange={handleChange}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                  </div>
+
                   <div className="edit-actions">
                     <button
                       className="action-button save-button"
                       onClick={handleUpdate}
                     >
-                      Save
+                      💾 Save Changes
                     </button>
                     <button
                       className="action-button cancel-button"
-                      onClick={() => setEditingId(null)}
+                      onClick={handleCancel}
                     >
-                      Cancel
+                      ❌ Cancel
                     </button>
                   </div>
                 </div>
@@ -113,21 +197,33 @@ const ScheduleList = () => {
                   <div className="schedule-info">
                     <p className="crop-name">🌱 {item.cropType}</p>
                     <p className="schedule-date">
-                      📅 {new Date(item.scheduledDate).toLocaleString()}
+                      📅 {formatForDisplay(item.scheduledDate)}
                     </p>
+                    {item.location && (
+                      <p className="schedule-location">📍 {item.location}</p>
+                    )}
+                    {item.soilType && (
+                      <p className="schedule-soil">🌍 {item.soilType}</p>
+                    )}
+                    {item.irrigationNeeded && (
+                      <p className="schedule-advice">💧 {item.irrigationNeeded}</p>
+                    )}
+                    {item.phoneNumber && (
+                      <p className="schedule-phone">📞 {item.phoneNumber}</p>
+                    )}
                   </div>
                   <div className="schedule-actions">
                     <button
                       className="action-button edit-button"
                       onClick={() => handleEdit(item)}
                     >
-                      Edit
+                      ✏️ Edit
                     </button>
                     <button
                       className="action-button delete-button"
                       onClick={() => handleDelete(item._id)}
                     >
-                      Delete
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>

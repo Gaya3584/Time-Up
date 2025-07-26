@@ -27,15 +27,42 @@ router.post("/", verifyToken, async (req, res) => {
 
 // ✅ Delete a schedule
 router.delete("/:id", verifyToken, async (req, res) => {
-  await Schedule.findByIdAndDelete(req.params.id);
-  res.sendStatus(204);
+  try {
+    const result = await Schedule.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id, // Ensures the schedule belongs to the user
+    });
+
+    if (!result) {
+      // If no document was found and deleted, it was either the wrong ID or not owned by the user
+      return res.status(404).json({ message: "Schedule not found or you do not have permission to delete it" });
+    }
+
+    res.sendStatus(204); // Success, no content
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ✅ Update a schedule
 router.put("/:id", verifyToken, async (req, res) => {
-  const updated = await Schedule.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
+  try {
+    const updated = await Schedule.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id }, // Ensures the schedule belongs to the user
+      req.body,
+      { new: true }
+    );
+    
+    if (!updated) {
+        return res.status(404).json({ message: "Schedule not found or you do not have permission to update it" });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 // ✅ Auto-schedule (AI)
 // ✅ Auto-schedule (AI) — one per day logic

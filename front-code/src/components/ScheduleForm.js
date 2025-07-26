@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./ScheduleForm.css";
 
-const ScheduleForm = () => {
+const ScheduleForm = ({ refetchSchedules }) => {
   const [formData, setFormData] = useState({
     cropType: "",
     soilType: "",
@@ -15,7 +15,7 @@ const ScheduleForm = () => {
 
   const [suggestedDates, setSuggestedDates] = useState([]);
   const [loading, setLoading] = useState(false);
-  const token = localStorage.getItem("token");
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -28,6 +28,8 @@ const ScheduleForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+  const token = localStorage.getItem("token");
 
     if (!token) {
       alert("Please login to schedule irrigation.");
@@ -48,7 +50,12 @@ const ScheduleForm = () => {
 
         const result = await response.json();
         if (result.success) {
+          // It's clearer to alert the user that schedules were CREATED.
+          alert("Successfully auto-scheduled irrigations!");
           setSuggestedDates(result.schedules);
+          
+          // FIX 1: Refresh the main schedule list after auto-scheduling.
+          refetchSchedules(); 
         } else {
           alert("Auto-scheduling failed");
         }
@@ -64,6 +71,7 @@ const ScheduleForm = () => {
 
         if (response.ok) {
           alert("Schedule submitted successfully!");
+          refetchSchedules();
         } else {
           alert("Error saving schedule");
         }

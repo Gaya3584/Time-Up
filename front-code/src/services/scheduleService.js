@@ -1,29 +1,34 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:5000/api/schedules";
-const token = localStorage.getItem("token");
-
-const authHeader = {
-  headers: {
-    Authorization: `Bearer ${token}`
-  }
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  };
 };
 
 export const fetchSchedules = async () => {
-  const response = await axios.get(API_URL, authHeader);
+  // Get the latest headers right before the request
+  const response = await axios.get(API_URL, getAuthHeaders());
   return response.data;
 };
 
 export const createSchedule = async (schedule) => {
-  const response = await axios.post(API_URL, schedule, authHeader);
+  // Get the latest headers right before the request
+  const response = await axios.post(API_URL, schedule, getAuthHeaders());
   return response.data;
 };
 
 export const deleteSchedule = async (id) => {
-  await axios.delete(`${API_URL}/schedules/${id}`, authHeader);
+  // Get the latest headers right before the request
+  await axios.delete(`${API_URL}/${id}`, getAuthHeaders());
 };
 
 export const updateSchedule = async (id, updated) => {
-  const response = await axios.put(`${API_URL}/schedules/${id}`, updated, authHeader);
+  // Get the latest headers right before the request
+  const response = await axios.put(`${API_URL}/${id}`, updated, getAuthHeaders());
   return response.data;
 };

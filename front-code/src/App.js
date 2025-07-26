@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fetchSchedules } from "./services/scheduleService";
 import ScheduleForm from "./components/ScheduleForm";
 import ScheduleList from "./components/ScheduleList";
 import CalendarView from "./components/CalendarView";
@@ -9,7 +10,17 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [username, setUsername] = useState("");
+  const [schedules, setSchedules] = useState([]);
 
+  const loadSchedules = async () => {
+    try {
+      const data = await fetchSchedules();
+      setSchedules(data);
+    } catch (error) {
+      console.error("Failed to load schedules:", error);
+      setSchedules([]); // Clear schedules on error
+    }
+  };
   // ✅ Load from localStorage on initial mount
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -22,6 +33,7 @@ function App() {
 
       setUsername(displayName);
       setIsAuthenticated(true);
+      loadSchedules(); 
     }
   }, []);
 
@@ -32,6 +44,7 @@ function App() {
 
     setUsername(displayName);
     setIsAuthenticated(true);
+    loadSchedules(); 
   };
 
   const handleLogout = () => {
@@ -39,6 +52,7 @@ function App() {
     localStorage.removeItem("username");
     setUsername("");
     setIsAuthenticated(false);
+    setSchedules([]); 
   };
 
   const goToRegister = () => setShowRegister(true);
@@ -50,9 +64,9 @@ function App() {
         <>
           <h1>Welcome, {username?.split("@")[0]}! 🌿</h1>
           <button onClick={handleLogout}>Logout</button>
-          <ScheduleForm username={username} />
-          <ScheduleList username={username} />
-          <CalendarView />
+          <ScheduleForm username={username} refetchSchedules={loadSchedules}/>
+          <ScheduleList username={username} schedules={schedules} refetchSchedules={loadSchedules}/>
+          <CalendarView schedules={schedules}/>
         </>
       ) : showRegister ? (
         <Register onRegister={goToLogin} goToLogin={goToLogin} />
