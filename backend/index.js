@@ -1,8 +1,10 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path"); // ⬅️ Added to serve frontend
+
 const scheduleRoutes = require("./routes/scheduleRoutes");
-const authRoutes = require("./routes/routeauth"); // ✅ Import auth routes
+const authRoutes = require("./routes/routeauth");
 require("dotenv").config();
 
 const app = express();
@@ -13,7 +15,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/schedules", scheduleRoutes);
-app.use("/api/auth", authRoutes); // ✅ Mount auth routes
+app.use("/api/auth", authRoutes);
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -23,11 +25,21 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log("MongoDB connected"))
 .catch((err) => console.log("Mongo error: ", err));
 
-// Test route
-app.get("/", (req, res) => {
-  res.send("Smart Irrigation Scheduler backend is running");
+// ✅ Serve React static files (only in production)
+const buildPath = path.join(__dirname, "build");
+app.use(express.static(buildPath));
+
+// ✅ Fallback to React for non-API routes
+app.get("*", (req, res) => {
+  if (!req.originalUrl.startsWith("/api")) {
+    res.sendFile(path.join(buildPath, "index.html"));
+  } else {
+    res.status(404).send("API route not found");
+  }
 });
 
+// Server start
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
+
